@@ -1,6 +1,6 @@
 module github.com/imohamedsheta/xnotify/asynq
 
-go 1.26.3
+go 1.24.6
 
 require (
 	github.com/hibiken/asynq v0.26.0

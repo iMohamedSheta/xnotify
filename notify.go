@@ -152,7 +152,3 @@ func (n *Notify) buildTasks(notification Notification, notifiables ...Notifiable
 func (n *Notify) logErr(msg string, fields ...any) {
 	n.log.Error("xnotify: "+msg, fields...)
 }
-
-func (n *Notify) logInfo(msg string, fields ...any) {
-	n.log.Info("xnotify: "+msg, fields...)
-}
