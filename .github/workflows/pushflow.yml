@@ -51,6 +51,7 @@ jobs:
           version: latest
           args: --timeout=5m
           working-directory: ${{ matrix.module }}
+          install-mode: goinstall
 
       - name: Run go vet
         run: go vet ./...
