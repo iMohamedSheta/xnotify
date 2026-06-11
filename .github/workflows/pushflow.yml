@@ -21,7 +21,7 @@ jobs:
           - module: "goroutine"
             go-version: "1.24.13"
           - module: "asynq"
-            go-version: "1.25.9"
+            go-version: "1.25.11"
 
     defaults:
       run:
