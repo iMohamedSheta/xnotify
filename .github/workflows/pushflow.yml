@@ -6,21 +6,6 @@ on:
   pull_request:
     branches: [main, develop]
 
-# Each subpackage (goroutine, asynq) is its own Go module with its own go.mod,
-# so every job uses a matrix to run once per module directory.
-strategy:
-  fail-fast: false
-  matrix:
-    include:
-      - module: "."
-        go-version: "1.24.13"
-
-      - module: "goroutine"
-        go-version: "1.24.13"
-
-      - module: "asynq"
-        go-version: "1.25.9"
-
 jobs:
   # ─── Lint ──────────────────────────────────────────────────────────────────
   lint:
@@ -30,7 +15,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [".", "goroutine", "asynq"]
+        include:
+          - module: "."
+            go-version: "1.24.13"
+          - module: "goroutine"
+            go-version: "1.24.13"
+          - module: "asynq"
+            go-version: "1.25.9"
 
     defaults:
       run:
@@ -41,7 +32,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ matrix.go-version }}   # ← matrix, not env
 
       - uses: actions/cache@v4
         with:
@@ -78,9 +69,6 @@ jobs:
           staticcheck ./...
 
   # ─── Lint gate ─────────────────────────────────────────────────────────────
-  # A single non-matrix job that only succeeds when every lint matrix job has
-  # passed. The test job depends on this instead of on `lint` directly, which
-  # would block all test matrix legs if any one lint leg failed.
   lint-ok:
     name: Lint (all modules passed)
     runs-on: ubuntu-latest
@@ -95,7 +83,6 @@ jobs:
           fi
 
   # ─── Security ──────────────────────────────────────────────────────────────
-  # Runs in parallel with lint — no reason to wait for lint to pass first.
   security:
     name: Security (${{ matrix.module }})
     runs-on: ubuntu-latest
@@ -103,7 +90,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [".", "goroutine", "asynq"]
+        include:
+          - module: "."
+            go-version: "1.24.13"
+          - module: "goroutine"
+            go-version: "1.24.13"
+          - module: "asynq"
+            go-version: "1.25.9"
 
     defaults:
       run:
@@ -114,7 +107,15 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ matrix.go-version }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ matrix.module }}-${{ hashFiles(format('{0}/go.sum', matrix.module)) }}
+          restore-keys: ${{ runner.os }}-go-${{ matrix.module }}-
 
       - name: Install dependencies
         run: go mod download
@@ -130,8 +131,6 @@ jobs:
           govulncheck ./...
 
   # ─── Test ──────────────────────────────────────────────────────────────────
-  # Depends on lint-ok so all three test legs run independently — a lint
-  # failure in one module does not suppress tests in the other two.
   test:
     name: Test (${{ matrix.module }})
     runs-on: ubuntu-latest
@@ -140,7 +139,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [".", "goroutine", "asynq"]
+        include:
+          - module: "."
+            go-version: "1.24.13"
+          - module: "goroutine"
+            go-version: "1.24.13"
+          - module: "asynq"
+            go-version: "1.25.9"
 
     defaults:
       run:
@@ -151,7 +156,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ matrix.go-version }}
 
       - uses: actions/cache@v4
         with:
@@ -165,7 +170,7 @@ jobs:
         run: go mod download
 
       - name: Run tests
-        run: go test -v -race -count=1  ./...
+        run: go test -v -race -count=1 -coverprofile=coverage.out ./...  # ← added -coverprofile
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
