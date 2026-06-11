@@ -8,8 +8,18 @@ on:
 
 # Each subpackage (goroutine, asynq) is its own Go module with its own go.mod,
 # so every job uses a matrix to run once per module directory.
-env:
-  GO_VERSION: "1.24.13"
+strategy:
+  fail-fast: false
+  matrix:
+    include:
+      - module: "."
+        go-version: "1.24.13"
+
+      - module: "goroutine"
+        go-version: "1.24.13"
+
+      - module: "asynq"
+        go-version: "1.25.9"
 
 jobs:
   # ─── Lint ──────────────────────────────────────────────────────────────────
