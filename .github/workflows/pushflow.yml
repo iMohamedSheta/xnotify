@@ -1,0 +1,165 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Each subpackage (goroutine, asynq) is its own Go module with its own go.mod,
+# so every job uses a matrix to run once per module directory.
+env:
+  GO_VERSION: "1.24.6"
+
+jobs:
+  # ─── Lint ──────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (${{ matrix.module }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", "goroutine", "asynq"]
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ matrix.module }}-${{ hashFiles(format('{0}/go.sum', matrix.module)) }}
+          restore-keys: ${{ runner.os }}-go-${{ matrix.module }}-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+          working-directory: ${{ matrix.module }}
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "Unformatted files:"
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: Run staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
+
+  # ─── Lint gate ─────────────────────────────────────────────────────────────
+  # A single non-matrix job that only succeeds when every lint matrix job has
+  # passed. The test job depends on this instead of on `lint` directly, which
+  # would block all test matrix legs if any one lint leg failed.
+  lint-ok:
+    name: Lint (all modules passed)
+    runs-on: ubuntu-latest
+    needs: lint
+    if: always()
+    steps:
+      - name: Check lint results
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "One or more lint jobs failed."
+            exit 1
+          fi
+
+  # ─── Security ──────────────────────────────────────────────────────────────
+  # Runs in parallel with lint — no reason to wait for lint to pass first.
+  security:
+    name: Security (${{ matrix.module }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", "goroutine", "asynq"]
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec ./...
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # ─── Test ──────────────────────────────────────────────────────────────────
+  # Depends on lint-ok so all three test legs run independently — a lint
+  # failure in one module does not suppress tests in the other two.
+  test:
+    name: Test (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    needs: lint-ok
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", "goroutine", "asynq"]
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ matrix.module }}-${{ hashFiles(format('{0}/go.sum', matrix.module)) }}
+          restore-keys: ${{ runner.os }}-go-${{ matrix.module }}-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -count=1  ./...
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.module == '.' && 'root' || matrix.module }}
+          path: ${{ matrix.module }}/coverage.out
+          retention-days: 7

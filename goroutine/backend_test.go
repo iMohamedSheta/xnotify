@@ -238,7 +238,7 @@ func TestEnqueue_FutureScheduleAt_ShutdownCancelsTimer(t *testing.T) {
 // ── Stopped backend ───────────────────────────────────────────────────────────
 
 func TestEnqueue_AfterShutdown_ReturnsError(t *testing.T) {
-	handler, _, _ := countingHandler()
+	handler, _ := countingHandler()
 	b := goroutine.New(goroutine.Options{Workers: 1, QueueSize: 8}, handler)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -254,7 +254,7 @@ func TestEnqueue_AfterShutdown_ReturnsError(t *testing.T) {
 }
 
 func TestEnqueue_AfterShutdown_FutureScheduleAt_ReturnsError(t *testing.T) {
-	handler, _, _ := countingHandler()
+	handler, _ := countingHandler()
 	b := goroutine.New(goroutine.Options{Workers: 1, QueueSize: 8}, handler)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -271,7 +271,7 @@ func TestEnqueue_AfterShutdown_FutureScheduleAt_ReturnsError(t *testing.T) {
 // ── Shutdown ──────────────────────────────────────────────────────────────────
 
 func TestShutdown_Idempotent(t *testing.T) {
-	handler, _, _ := countingHandler()
+	handler, _ := countingHandler()
 	b := goroutine.New(goroutine.Options{Workers: 2, QueueSize: 8}, handler)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -411,7 +411,7 @@ func TestHandler_Error_DoesNotStopWorker(t *testing.T) {
 
 func TestOptions_ZeroValues_UseDefaults(t *testing.T) {
 	// Zero-value Options must not panic — defaults kick in.
-	handler, _, _ := countingHandler()
+	handler, _ := countingHandler()
 	b := goroutine.New(goroutine.Options{}, handler)
 
 	if err := b.Enqueue(context.Background(), basicNotification{}, task("default-opts", "email"), nil); err != nil {

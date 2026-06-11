@@ -27,7 +27,7 @@ go get github.com/imohamedsheta/xnotify/asynq
 | `Notification` | Describes what to send, to which channels, and how |
 | `Notifiable` | The recipient — a user, team, or any entity with an ID |
 | `ChannelHandler` | Delivers a task on one channel (email, Slack, SMS, …) |
-| `QueueBackend` | Puts tasks on a queue; implemented by `asynq` |
+| `QueueBackend` | Puts tasks on a queue; implemented by `asynq`, `goroutine` |
 | `Notify` | The central dispatcher — wires everything together |
 
 ---
