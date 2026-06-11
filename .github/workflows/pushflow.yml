@@ -9,7 +9,7 @@ on:
 # Each subpackage (goroutine, asynq) is its own Go module with its own go.mod,
 # so every job uses a matrix to run once per module directory.
 env:
-  GO_VERSION: "1.24.6"
+  GO_VERSION: "1.24.13"
 
 jobs:
   # ─── Lint ──────────────────────────────────────────────────────────────────
